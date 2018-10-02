@@ -11,10 +11,10 @@ app.set('view engine', 'ejs');
 app.use(chatCat.session);
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(require('morgan')('combined',{
-	stream:{
-		write: message=>{
-			//write to logs
+app.use(require('morgan')('combined', {
+	stream: {
+		write: message => {
+			// Write to logs
 			chatCat.logger.log('info', message);
 		}
 	}
@@ -23,5 +23,5 @@ app.use(require('morgan')('combined',{
 app.use('/', chatCat.router);
 
 chatCat.ioServer(app).listen(app.get('port'), () => {
- console.log('server started'); 
-}); 
+	console.log('ChatCAT Running on Port: ', app.get('port'));
+});

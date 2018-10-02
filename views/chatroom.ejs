@@ -6,72 +6,98 @@
 	<link rel="stylesheet" href="/css/chatroomStyles.css">
 	<script src="/js/jquery-2.1.4.min.js"></script>
 	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://widget.cloudinary.com/global/all.js"></script>
 	<script>
-		'use strict';
-		$(()=>{
-			let socket = io('<%= host %>' + '/chatter',{
-				transports: ['websocket']
-			});
-			let roomID = '<%= roomID %>';
-			let user = '<%= user.fullName %>';
-			let userPic = '<%= user.profilePic %>';
-			let chatUsers = $('.chatUsers');
-			let chatInput = $("input[name='userInput']");
-			let chatMessagesDiv = $('.chatMessages');
+	'use strict';
+	$(() => {
+		let socket = io('<%= host %>' + '/chatter', {
+			transports: ['websocket']
+		});
+		let roomID = '<%= roomID %>';
+		let user = '<%= user.fullName %>';
+		let userPic = '<%= user.profilePic %>';
+		let chatUsers = $('.chatUsers');
+		let chatInput = $("input[name='userInput']");
+		let chatMessagesDiv = $('.chatMessages');
+		let filePicker = $('#uploadFile');
 
-			socket.on('connect', ()=>{
-				socket.emit('join',{
+		socket.on('connect', () => {
+			socket.emit('join', {
+				roomID,
+				user,
+				userPic
+			});
+		});
+
+		let userList = user => {
+			return `<div class="userBlock">
+					<div class="userPic"><img src="${user.userPic}" alt="${user.user}"></div>
+					<div class="cuserName">${user.user}</div>
+				</div>`;
+		}
+
+		socket.on('updateUsersList', data => {
+			let parsedData = JSON.parse(data);
+			let usersListData = '';
+			for(let user of parsedData) {
+				usersListData += userList(user);
+			}
+			chatUsers.html('').html(usersListData);
+		});
+
+		let updateFeed = (userPic, message) => {
+			let template = `<div class="chatBlock">
+								<div class="userPic"><img src="${userPic}"></div>
+								<div class="chatMsg">${message}</div>
+							</div>`;
+			$(template).hide().prependTo(chatMessagesDiv).slideDown(200);
+		}
+
+		chatInput.on('keyup', function(evt) {
+			evt.preventDefault();
+			let messageFld = $(this);
+			if(evt.which === 13 && messageFld.val() !== '') {
+				socket.emit('newMessage', {
 					roomID,
 					user,
-					userPic
+					userPic,
+					message: messageFld.val()
 				});
-			});
-
-			let userList = user=>{
-				return `<div class="userBlock">
-					<div class="userPic"><img src="${user.userPic}" alt="${user.user}"></div>
-					<div class="cuserName">${user.userPic}</div>
-				</div>`;
+				// Update the local feed
+				updateFeed(userPic, messageFld.val());
+				messageFld.val('');
 			}
+		});
 
-			socket.on('updateUsersList', data=>{
-				let parsedData = JSON.parse(data);
-				let usersListData = '';
-				for(let user of parsedData){
-					usersListData += userList(user);
-				}
-				chatUsers.html('').html(usersListData);
-			});
+		socket.on('inMessage', data => {
+			let parsedData = JSON.parse(data);
+			updateFeed(parsedData.userPic, parsedData.message);
+		});
 
-			let updateFeed = (userPic,message)=>{
-				let template = `<div class="chatBlock">
-					<div class="userPic"><img src="${userPic}"></div>
-					<div class="chatMsg">${message}</div></div>`;
-					$(template).hide().prependTo(chatMessagesDiv).slideDown(200);
-			}
+		filePicker.on('click', function(evt) {
+			cloudinary.openUploadWidget({
+				cloud_name: 'dikniqpsy',
+				upload_preset: 'xwa7iuys'
+			}, (error, result) => {
+				if(!error) {
+					let tmp = '';
+					for(let img of result) {
+						tmp += `<img src="${img.url}">`
+					}
+					updateFeed(userPic, tmp);
 
-			chatInput.on('keyup',function(evt){
-				evt,preventDefault();
-				let messageFld = $(this);
-				if(evt.which === 13 && messageFld.val() !== ''){
-					socket.emit('newMessage',{
-						roomId,
+					socket.emit('newMessage', {
+						roomID,
 						user,
 						userPic,
-						message: messageFld.val()
+						message: tmp
 					});
-					//update the local feed
-					updateFeed(userPic,messageFld.val());
-					messageFld.val('');
+
 				}
 			});
-
-			socket.on('inMessage', data=>{
-				let parsedData = JSON.parse(data);
-				updateFeed(parsedData.userPic, parsedData.message);
-			});
-
 		});
+
+	});
 	</script>
 </head>
 <body>
@@ -80,7 +106,7 @@
 			<h1>ChatCAT | <%= room %></h1>
 		</div>
 		<div class="controls">
-			<div class="userPicHolder"><img src="<%= user.profilePic %>" alt="John Doe"></div>
+			<div class="userPicHolder"><img src="<%= user.profilePic %>" alt="<%= user.fullName %>"></div>
 			<p class="userName"><%= user.fullName %></p>
 			<a href="/rooms" id="roomsBtn">Rooms</a>
 			<a href="/logout" id="logOutBtn">Logout</a>
@@ -89,7 +115,7 @@
 			<div class="chatMessagesPanel">
 				<div class="chatMessages">
 				<!-- Loop this for chat messages -->
-				
+					
 				<!-- loop end -->
 				</div>
 				<div class="typePanel">
@@ -99,10 +125,7 @@
 			</div>
 			<div class="chatUsers">
 			<!-- Loop this for chat users -->
-				<div class="userBlock">
-					<div class="userPic"><img src="/img/user.jpg" alt="John Doe"></div>
-					<div class="cuserName">John Doe</div>
-				</div>
+				
 			<!-- loop end -->
 			</div>
 		</div>
